@@ -65,8 +65,15 @@ export function generateProgram(p) {
   const ends = [90, 180, 240, 300];
   const phases = PHASES.map((ph, i) => ({ ...ph, from: addDays(start, offsets[i]), to: addDays(start, ends[i]) }));
 
+  // Daily macro targets built around the primary calorie number.
+  // Protein is the anchor; fat ~25% of calories (a sensible floor); carbs fill the rest.
+  const dayTarget = cut;
+  const fat = Math.round((0.25 * dayTarget) / 9);
+  const carbs = Math.max(0, Math.round((dayTarget - protein * 4 - fat * 9) / 4));
+  const macros = { kcal: dayTarget, protein, fat, carbs };
+
   return {
-    bmr, tdee, cut, maintenance, surplus: maintenance + 180, protein, mode, note,
+    bmr, tdee, cut, maintenance, surplus: maintenance + 180, protein, macros, mode, note,
     bmi: Math.round(bmi * 10) / 10, start, steps: '8,000–10,000',
     weeklyTarget: mode === 'cut' ? '0.4–0.6 kg down' : 'hold steady',
     phases, generatedAt: TODAY,

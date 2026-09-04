@@ -1,11 +1,24 @@
 # 10-Month Program
 
 A personal training tracker for the 10-month lean-athletic program. Create an
-account with your stats and it builds a calorie/protein/phase plan around you,
-then tracks your daily mobility streak, bodyweight trend, and workouts.
+account with your stats and it builds a calorie/protein/macro/phase plan around
+you, then tracks your daily mobility streak, bodyweight trend, workouts, and
+food intake (with barcode scanning).
 
-No build step, no dependencies — plain HTML, CSS, and ES modules. Hosts free on
-GitHub Pages.
+No build step, no dependencies to install — plain HTML, CSS, and ES modules.
+Hosts free on GitHub Pages.
+
+## Food tracking (Food tab)
+
+- **Barcode scanning** uses the browser's built-in BarcodeDetector where available
+  (Android/Chrome), and falls back to the free ZXing library (loaded from a CDN)
+  on browsers without it, such as iOS Safari.
+- **Food data** comes from [Open Food Facts](https://world.openfoodfacts.org) — a
+  free, open database, no API key. Barcode lookup and name search both hit it
+  directly from the browser.
+- Requirements: scanning needs **camera permission** and **HTTPS** (GitHub Pages
+  provides HTTPS). Lookups need an **internet connection**. Coverage is strong for
+  packaged/barcoded products; for fresh or homemade food, use Search or Manual entry.
 
 ## Run it
 
@@ -32,9 +45,11 @@ file (`file://`). Use one of these:
     js/
       main.js             router: renders auth or the app shell + active tab
       state.js            app state; the only place saved data is mutated
-      program.js          plan content + generateProgram() (the tailoring logic)
+      program.js          plan content + generateProgram() (calories + macros)
       accounts.js         account + per-user data storage
       chart.js            the hand-drawn SVG bodyweight chart
+      food.js             Open Food Facts client (barcode lookup + search)
+      scanner.js          camera barcode scanning (native + ZXing fallback)
       lib/
         storage.js        localStorage wrapper with in-memory fallback
         crypto.js         SHA-256 password hashing
@@ -43,6 +58,7 @@ file (`file://`). Use one of these:
       views/
         auth.js           log in + create account (runs the generator)
         today.js          mobility streak, supplements, quick weigh-in
+        food.js           macro totals vs targets + scan/search/manual logging
         plan.js           the generated calorie/protein/phase plan
         progress.js       bodyweight stats + trend chart
         train.js          workout logging + history

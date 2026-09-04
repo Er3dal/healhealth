@@ -74,3 +74,22 @@ export function logWeight(kg) {
 
 export function addWorkout(w) { state.data.workouts.unshift(w); persist(); onChange(); }
 export function deleteWorkout(id) { state.data.workouts = state.data.workouts.filter((w) => w.id !== id); persist(); onChange(); }
+
+// --- food / macros ---
+export const foodToday = () => state.data.food[TODAY] || [];
+
+export function addFood(entry) {
+  const id = String(Date.now()) + Math.random().toString(36).slice(2, 6);
+  state.data.food[TODAY] = [...foodToday(), { ...entry, id }];
+  persist(); onChange();
+}
+export function deleteFood(id) {
+  state.data.food[TODAY] = foodToday().filter((f) => f.id !== id);
+  persist(); onChange();
+}
+export function foodTotals() {
+  return foodToday().reduce((a, f) => ({
+    kcal: a.kcal + (f.kcal || 0), protein: a.protein + (f.protein || 0),
+    carbs: a.carbs + (f.carbs || 0), fat: a.fat + (f.fat || 0),
+  }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+}
