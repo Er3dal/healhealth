@@ -1,4 +1,5 @@
-import { state, profile, foodToday, foodTotals, addFood, deleteFood, notify } from '../state.js';
+import { state, profile, foodToday, foodTotals, addFood, deleteFood,
+  myFoods, saveMyFood, deleteMyFood, recentFoods, notify } from '../state.js';
 import { lookupBarcode, searchFoods, scaleMacros } from '../food.js';
 import { startScanner } from '../scanner.js';
 import { $, val, escapeHTML, escapeAttr } from '../lib/dom.js';
@@ -21,6 +22,8 @@ export function renderFood(v) {
   const g = profile().program.macros;
   const t = foodTotals();
   const f = ui();
+  const recent = recentFoods(8);
+  f.recent = recent;
 
   v.innerHTML = `
     <div class="stack">
@@ -34,9 +37,17 @@ export function renderFood(v) {
         </div>
       </div>
 
+      ${recent.length ? `<div class="card">
+        <div class="card-top"><h3>Quick add</h3><span class="tag">recent</span></div>
+        <div class="recent">${recent.map((r, i) =>
+          `<button class="rchip" data-recent="${i}"><b>${escapeHTML(r.name)}</b><small>${r.kcal} kcal</small></button>`
+        ).join('')}</div>
+      </div>` : ''}
+
       <div class="add-row">
-        <button class="add-btn" data-mode="scan"><span>📷</span>Scan barcode</button>
+        <button class="add-btn" data-mode="scan"><span>📷</span>Scan</button>
         <button class="add-btn" data-mode="search"><span>🔎</span>Search</button>
+        <button class="add-btn" data-mode="myfoods"><span>⭐</span>My food</button>
         <button class="add-btn" data-mode="manual"><span>✏️</span>Manual</button>
       </div>
 
@@ -45,7 +56,7 @@ export function renderFood(v) {
       <div class="card">
         <div class="card-top"><h3>Logged today</h3><span class="tag">${foodToday().length} items</span></div>
         <div>${foodToday().length === 0
-          ? `<div class="empty">Nothing logged yet. Scan a barcode, search a food, or add one manually.</div>`
+          ? `<div class="empty">Nothing logged yet. Scan a barcode, search a food, pick one of your saved foods, or add one manually.</div>`
           : foodToday().map(foodRow).join('')}</div>
       </div>
     </div>`;
@@ -84,7 +95,37 @@ function panel(f) {
   if (f.pending) return quantityPanel(f.pending);
   if (f.mode === 'scan') return scanPanel(f);
   if (f.mode === 'search') return searchPanel(f);
+  if (f.mode === 'myfoods') return myFoodsPanel();
   return manualPanel();
+}
+
+function myFoodsPanel() {
+  const list = myFoods();
+  return `<div class="card panel">
+    <div class="card-top"><h3>My foods</h3><button class="link muted-link" id="close">Close</button></div>
+    ${list.length
+      ? `<div>${list.map(myFoodRow).join('')}</div>`
+      : `<div class="empty">No saved foods yet. Create one below — homemade meals, your usual shake, anything you eat often — then add it in one tap next time.</div>`}
+    <div class="divider"></div>
+    <div class="subh">New custom food</div>
+    <label class="field"><span>Name</span><input id="nf_name" placeholder="e.g. My chicken & rice bowl"></label>
+    <div class="row2">
+      <label class="field"><span>Calories</span><input id="nf_kcal" inputmode="numeric"></label>
+      <label class="field"><span>Protein (g)</span><input id="nf_p" inputmode="numeric"></label>
+    </div>
+    <div class="row2">
+      <label class="field"><span>Carbs (g)</span><input id="nf_c" inputmode="numeric"></label>
+      <label class="field"><span>Fat (g)</span><input id="nf_f" inputmode="numeric"></label>
+    </div>
+    <button class="btn full" id="nf_save">Save to My Foods</button>
+  </div>`;
+}
+function myFoodRow(f) {
+  return `<div class="food-row">
+    <div class="food-name">${escapeHTML(f.name)}<small>${f.kcal} kcal · P${f.protein} C${f.carbs} F${f.fat}</small></div>
+    <button class="mini-add" data-log="${f.id}">Add</button>
+    <button class="food-del" data-delmy="${f.id}" aria-label="Delete saved food">✕</button>
+  </div>`;
 }
 
 function scanPanel(f) {
@@ -118,6 +159,7 @@ function manualPanel(vals = {}) {
       <label class="field"><span>Carbs (g)</span><input id="m_c" inputmode="numeric" value="${vals.carbs ?? ''}"></label>
       <label class="field"><span>Fat (g)</span><input id="m_f" inputmode="numeric" value="${vals.fat ?? ''}"></label>
     </div>
+    <label class="check"><input type="checkbox" id="m_save"> Save to My Foods for next time</label>
     <button class="btn full" id="m_add">Add to today</button>
   </div>`;
 }
@@ -131,6 +173,7 @@ function quantityPanel(p) {
       : `<label class="field"><span>Food</span><input id="q_name" value="${escapeAttr(p.name)}"></label>
          <label class="field"><span>Amount (grams)</span><input id="q_g" inputmode="decimal" value="${grams}"></label>
          <div class="qmac" id="qmac">${m.kcal} kcal · P${m.protein} · C${m.carbs} · F${m.fat}</div>
+         <label class="check"><input type="checkbox" id="q_save"> Save this portion to My Foods</label>
          <button class="btn full" id="q_add">Add to today</button>`}
   </div>`;
 }
@@ -140,6 +183,7 @@ function manualInner() {
     <label class="field"><span>Protein (g)</span><input id="m_p" inputmode="numeric"></label></div>
     <div class="row2"><label class="field"><span>Carbs (g)</span><input id="m_c" inputmode="numeric"></label>
     <label class="field"><span>Fat (g)</span><input id="m_f" inputmode="numeric"></label></div>
+    <label class="check"><input type="checkbox" id="m_save"> Save to My Foods for next time</label>
     <button class="btn full" id="m_add">Add to today</button>`;
 }
 
@@ -148,12 +192,29 @@ function wire(v) {
   const f = ui();
   v.querySelectorAll('.add-btn').forEach((b) => { b.onclick = () => setMode(b.dataset.mode); });
   v.querySelectorAll('[data-del]').forEach((b) => { b.onclick = () => deleteFood(b.dataset.del); });
+  v.querySelectorAll('[data-recent]').forEach((b) => {
+    b.onclick = () => { const r = f.recent[+b.dataset.recent]; if (r) addFood({ name: r.name, kcal: r.kcal, protein: r.protein, carbs: r.carbs, fat: r.fat, grams: r.grams }); };
+  });
   const close = $('close'); if (close) close.onclick = () => setMode(null);
 
   if (f.pending) return wireQuantity(f);
   if (f.mode === 'scan') return wireScan(f);
   if (f.mode === 'search') return wireSearch(f);
+  if (f.mode === 'myfoods') return wireMyFoods();
   if (f.mode === 'manual') return wireManual();
+}
+
+function wireMyFoods() {
+  document.querySelectorAll('[data-log]').forEach((b) => {
+    b.onclick = () => { const mf = myFoods().find((x) => x.id === b.dataset.log); if (mf) addFood({ name: mf.name, kcal: mf.kcal, protein: mf.protein, carbs: mf.carbs, fat: mf.fat }); };
+  });
+  document.querySelectorAll('[data-delmy]').forEach((b) => { b.onclick = () => deleteMyFood(b.dataset.delmy); });
+  const save = $('nf_save');
+  if (save) save.onclick = () => {
+    const name = val('nf_name').trim();
+    if (!name) return;
+    saveMyFood({ name, kcal: Math.round(+val('nf_kcal') || 0), protein: Math.round(+val('nf_p') || 0), carbs: Math.round(+val('nf_c') || 0), fat: Math.round(+val('nf_f') || 0) });
+  };
 }
 
 async function wireScan(f) {
@@ -205,7 +266,10 @@ function wireQuantity(f) {
   if (add) add.onclick = () => {
     const grams = parseFloat(val('q_g')) || 0;
     const m = scaleMacros(p.per100, grams);
-    addFood({ name: val('q_name') || p.name, grams, ...m });
+    const name = val('q_name') || p.name;
+    const doSave = $('q_save') && $('q_save').checked; // capture before re-render
+    addFood({ name, grams, ...m });
+    if (doSave) saveMyFood({ name, ...m });
     setMode(null);
   };
 }
@@ -215,13 +279,16 @@ function wireManual() {
   if (add) add.onclick = () => {
     const name = val('m_name').trim();
     if (!name) return;
-    addFood({
+    const food = {
       name,
       kcal: Math.round(+val('m_kcal') || 0),
       protein: Math.round(+val('m_p') || 0),
       carbs: Math.round(+val('m_c') || 0),
       fat: Math.round(+val('m_f') || 0),
-    });
+    };
+    const doSave = $('m_save') && $('m_save').checked; // capture before re-render
+    addFood(food);
+    if (doSave) saveMyFood(food);
     setMode(null);
   };
 }

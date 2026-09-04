@@ -93,3 +93,33 @@ export function foodTotals() {
     carbs: a.carbs + (f.carbs || 0), fat: a.fat + (f.fat || 0),
   }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 }
+
+// --- my foods (saved custom foods) ---
+export const myFoods = () => state.data.myfoods || [];
+
+export function saveMyFood(food) {
+  const id = 'mf' + Date.now() + Math.random().toString(36).slice(2, 5);
+  const clean = { id, name: food.name, kcal: food.kcal || 0, protein: food.protein || 0, carbs: food.carbs || 0, fat: food.fat || 0 };
+  // de-dupe by name (case-insensitive): replace an existing saved food of the same name
+  const rest = myFoods().filter((f) => f.name.toLowerCase() !== clean.name.toLowerCase());
+  state.data.myfoods = [clean, ...rest].slice(0, 200);
+  persist(); onChange();
+}
+export function deleteMyFood(id) {
+  state.data.myfoods = myFoods().filter((f) => f.id !== id);
+  persist(); onChange();
+}
+
+// Most-recently-logged distinct foods, newest first — for one-tap re-logging.
+export function recentFoods(n = 8) {
+  const seen = new Set(), out = [];
+  const days = Object.keys(state.data.food || {}).sort().reverse();
+  for (const d of days) {
+    const arr = state.data.food[d] || [];
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const f = arr[i], key = (f.name || '').toLowerCase();
+      if (key && !seen.has(key)) { seen.add(key); out.push(f); if (out.length >= n) return out; }
+    }
+  }
+  return out;
+}

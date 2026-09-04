@@ -16,6 +16,9 @@ Hosts free on GitHub Pages.
 - **Food data** comes from [Open Food Facts](https://world.openfoodfacts.org) — a
   free, open database, no API key. Barcode lookup and name search both hit it
   directly from the browser.
+- **My Foods**: save your own foods (homemade meals, shakes) once, then re-log
+  them in one tap. A **Quick add** strip re-logs recently eaten foods, and Scan /
+  Search / Manual all offer "save to My Foods" so anything becomes reusable.
 - Requirements: scanning needs **camera permission** and **HTTPS** (GitHub Pages
   provides HTTPS). Lookups need an **internet connection**. Coverage is strong for
   packaged/barcoded products; for fresh or homemade food, use Search or Manual entry.
@@ -58,7 +61,7 @@ file (`file://`). Use one of these:
       views/
         auth.js           log in + create account (runs the generator)
         today.js          mobility streak, supplements, quick weigh-in
-        food.js           macro totals vs targets + scan/search/manual logging
+        food.js           macro totals; scan/search/manual + My Foods library
         plan.js           the generated calorie/protein/phase plan
         progress.js       bodyweight stats + trend chart
         train.js          workout logging + history

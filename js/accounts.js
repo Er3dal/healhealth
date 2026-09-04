@@ -15,5 +15,5 @@ export const setSession = (u) => store.set(SESSION_KEY, u || '');
 
 // Spread stored data over the defaults so accounts created before a new field
 // existed (e.g. `food`) still get it filled in.
-export const loadData = (u) => ({ daily: {}, weights: [], workouts: [], food: {}, ...jget(dataKey(u), {}) });
+export const loadData = (u) => ({ daily: {}, weights: [], workouts: [], food: {}, myfoods: [], ...jget(dataKey(u), {}) });
 export const saveData = (u, d) => jset(dataKey(u), d);
